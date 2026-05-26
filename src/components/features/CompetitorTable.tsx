@@ -128,7 +128,7 @@ export default function CompetitorTable({ books, keyword }: Props) {
                 </td>
                 <td className="px-4 py-4 text-right">
                   <span className="text-slate-200 font-semibold tabular-nums">
-                    {book.price.toFixed(2)} €
+                    ${book.price.toFixed(2)}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-right">

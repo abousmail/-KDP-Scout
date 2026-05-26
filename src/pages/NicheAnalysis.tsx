@@ -97,7 +97,7 @@ export default function NicheAnalysis() {
             {
               icon: '💰',
               title: 'Prix moyen',
-              value: `${(competitors.reduce((s, b) => s + b.price, 0) / competitors.length).toFixed(2)} €`,
+              value: `$${(competitors.reduce((s, b) => s + b.price, 0) / competitors.length).toFixed(2)}`,
               sub: 'Top 5 concurrents',
             },
             {
