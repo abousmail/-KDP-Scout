@@ -8,7 +8,9 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const isSupabaseConfigured =
-  supabaseUrl.startsWith('https://') && supabaseAnonKey.length > 20;
+  supabaseUrl.startsWith('https://') &&
+  (supabaseAnonKey.startsWith('eyJ') || supabaseAnonKey.startsWith('sb_')) &&
+  supabaseAnonKey.length > 20;
 
 /*
   Expected Supabase tables

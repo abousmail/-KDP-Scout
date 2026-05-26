@@ -5,6 +5,7 @@ import {
   HistoryItem, FavoriteItem, HistoryTab, AuthUser,
 } from '../types';
 import { generateSearchData, generateCompetitorBooks } from '../lib/mockData';
+import { supabase } from '../lib/supabase';
 
 interface AppStore {
   // ── Navigation ───────────────────────────────────────────────────────────
@@ -32,11 +33,13 @@ interface AppStore {
   removeFromHistory: (id: string) => void;
   clearHistory: () => void;
 
-  // ── Auth (Supabase-ready stub) ─────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────
   user: AuthUser | null;
+  setUser: (user: AuthUser | null) => void;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
-  login: (email: string, _password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -67,7 +70,6 @@ export const useStore = create<AppStore>()(
         if (!keyword.trim()) return;
         set({ isSearching: true, searchQuery: keyword });
 
-        // Simulate async API call
         setTimeout(() => {
           const { market, favorites } = get();
           const data = generateSearchData(keyword, market);
@@ -139,21 +141,46 @@ export const useStore = create<AppStore>()(
 
       // ── Auth ───────────────────────────────────────────────────────────────
       user: null,
+      setUser: (user) => set({ user }),
       isAuthModalOpen: false,
       setIsAuthModalOpen: (isAuthModalOpen) => set({ isAuthModalOpen }),
 
-      login: async (email, _password) => {
-        // TODO: Replace with supabase.auth.signInWithPassword({ email, password })
-        // Mocked for now
-        await new Promise(res => setTimeout(res, 800));
-        set({
-          user: { id: '1', email, name: email.split('@')[0] },
-          isAuthModalOpen: false,
-        });
+      login: async (email, password) => {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (data.user) {
+          set({
+            user: {
+              id: data.user.id,
+              email: data.user.email!,
+              name: data.user.email!.split('@')[0],
+            },
+            isAuthModalOpen: false,
+          });
+        }
+      },
+
+      signUp: async (email, password) => {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        if (data.user && !data.user.identities?.length) {
+          throw new Error('Un compte existe déjà avec cet email.');
+        }
+        // If email confirmation is disabled in Supabase, user is immediately active
+        if (data.session?.user) {
+          set({
+            user: {
+              id: data.session.user.id,
+              email: data.session.user.email!,
+              name: data.session.user.email!.split('@')[0],
+            },
+            isAuthModalOpen: false,
+          });
+        }
       },
 
       logout: () => {
-        // TODO: supabase.auth.signOut()
+        supabase.auth.signOut();
         set({ user: null });
       },
     }),
@@ -163,7 +190,6 @@ export const useStore = create<AppStore>()(
         history: state.history,
         favorites: state.favorites,
         market: state.market,
-        user: state.user,
       }),
     }
   )
