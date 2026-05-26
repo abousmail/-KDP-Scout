@@ -86,9 +86,11 @@ export const useStore = create<AppStore>()(
             if (result.suggestions.length > 0) {
               realSuggestions = result.suggestions;
               resolvedSource  = result.source;
+            } else {
+              console.warn('[KDP Scout] API returned 0 suggestions → using mock data');
             }
-          } catch {
-            // Local dev without vercel dev, network error, etc. — use mock
+          } catch (e) {
+            console.warn('[KDP Scout] API call failed → using mock data:', e instanceof Error ? e.message : String(e));
           }
 
           // ② Generate base KPI data (volume score, competition, opportunity grade)
