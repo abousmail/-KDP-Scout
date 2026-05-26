@@ -5,7 +5,7 @@ import {
   HistoryItem, FavoriteItem, HistoryTab, AuthUser,
 } from '../types';
 import { generateSearchData, generateCompetitorBooks } from '../lib/mockData';
-import { fetchAmazonSuggestions, buildKeywordsFromSuggestions } from '../lib/amazonApi';
+import { fetchSuggestions, buildKeywordsFromSuggestions, DataSource } from '../lib/amazonApi';
 import { supabase } from '../lib/supabase';
 
 interface AppStore {
@@ -19,7 +19,7 @@ interface AppStore {
   market: Market;
   setMarket: (m: Market) => void;
   isSearching: boolean;
-  isUsingRealData: boolean;   // true when Amazon API provided real suggestions
+  dataSource: DataSource;
   searchData: SearchData | null;
   competitors: CompetitorBook[];
 
@@ -58,7 +58,7 @@ export const useStore = create<AppStore>()(
       market: 'amazon.fr',
       setMarket: (market) => set({ market }),
       isSearching: false,
-      isUsingRealData: false,
+      dataSource: 'mock' as DataSource,
       searchData: null,
       competitors: [],
 
@@ -71,21 +71,24 @@ export const useStore = create<AppStore>()(
       // ── Search action ──────────────────────────────────────────────────────
       search: async (keyword) => {
         if (!keyword.trim()) return;
-        set({ isSearching: true, searchQuery: keyword, isUsingRealData: false });
+        set({ isSearching: true, searchQuery: keyword, dataSource: 'mock' });
 
         const start = Date.now();
 
         try {
           const { market, favorites } = get();
 
-          // ① Try real Amazon autocomplete; silently fall back on any failure
+          // ① Try real API (Amazon → Google fallback); silently fall back to mock on error
           let realSuggestions: string[] = [];
-          let gotRealData = false;
+          let resolvedSource: DataSource = 'mock';
           try {
-            realSuggestions = await fetchAmazonSuggestions(keyword, market);
-            gotRealData = realSuggestions.length > 0;
+            const result = await fetchSuggestions(keyword, market);
+            if (result.suggestions.length > 0) {
+              realSuggestions = result.suggestions;
+              resolvedSource  = result.source;
+            }
           } catch {
-            // Local dev without vercel dev, Amazon blocked, network error — use mock
+            // Local dev without vercel dev, network error, etc. — use mock
           }
 
           // ② Generate base KPI data (volume score, competition, opportunity grade)
@@ -97,7 +100,7 @@ export const useStore = create<AppStore>()(
 
           // ③ Build related keywords: real suggestions OR mock fallback
           const relatedKeywords = (
-            gotRealData
+            realSuggestions.length > 0
               ? buildKeywordsFromSuggestions(realSuggestions, baseData.competition)
               : baseData.relatedKeywords
           ).map(kw => ({ ...kw, isFavorite: favoriteKeywords.has(kw.keyword) }));
@@ -120,7 +123,7 @@ export const useStore = create<AppStore>()(
 
           set(state => ({
             isSearching: false,
-            isUsingRealData: gotRealData,
+            dataSource: resolvedSource,
             searchData: data,
             competitors: books,
             history: [historyItem, ...state.history.filter(h => h.keyword !== keyword)].slice(0, 50),

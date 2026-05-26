@@ -1,4 +1,4 @@
-import { Star, TrendingUp, Wifi, WifiOff } from 'lucide-react';
+import { Star, TrendingUp, Wifi, WifiOff, Globe } from 'lucide-react';
 import { KeywordResult } from '../../types';
 import {
   getScoreBadgeClasses,
@@ -46,7 +46,7 @@ export function KeywordTableSkeleton() {
 }
 
 export default function KeywordTable({ keywords }: Props) {
-  const { toggleFavorite, market, isUsingRealData } = useStore();
+  const { toggleFavorite, market, dataSource } = useStore();
 
   return (
     <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden animate-slide-up">
@@ -58,12 +58,19 @@ export default function KeywordTable({ keywords }: Props) {
             {keywords.length}
           </span>
           {/* Data source indicator */}
-          {isUsingRealData ? (
+          {dataSource === 'amazon' && (
             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-400/10 border border-emerald-400/20 text-emerald-400 text-xs font-medium">
               <Wifi className="w-3 h-3" />
               Amazon réel
             </span>
-          ) : (
+          )}
+          {dataSource === 'google' && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-400/10 border border-blue-400/20 text-blue-400 text-xs font-medium">
+              <Globe className="w-3 h-3" />
+              Google Suggest
+            </span>
+          )}
+          {dataSource === 'mock' && (
             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-700/60 border border-slate-600/40 text-slate-500 text-xs">
               <WifiOff className="w-3 h-3" />
               Simulé
