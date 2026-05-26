@@ -4,6 +4,7 @@ import Header from './components/layout/Header';
 import KeywordResearch from './pages/KeywordResearch';
 import NicheAnalysis from './pages/NicheAnalysis';
 import History from './pages/History';
+import TrendingNiches from './pages/TrendingNiches';
 import AuthModal from './components/features/AuthModal';
 import { useStore } from './store/useStore';
 import { supabase } from './lib/supabase';
@@ -51,6 +52,7 @@ export default function App() {
             {page === 'keywords' && <KeywordResearch />}
             {page === 'niche' && <NicheAnalysis />}
             {page === 'history' && <History />}
+            {page === 'trends' && <TrendingNiches />}
           </div>
         </main>
       </div>

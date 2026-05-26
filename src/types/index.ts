@@ -1,4 +1,4 @@
-export type Page = 'keywords' | 'niche' | 'history';
+export type Page = 'keywords' | 'niche' | 'history' | 'trends';
 export type Market = 'amazon.fr' | 'amazon.com' | 'amazon.co.uk';
 export type VolumeLevel = 'Haut' | 'Moyen' | 'Bas';
 export type OpportunityScore = 'A+' | 'A' | 'B+' | 'B' | 'C+' | 'C' | 'D' | 'E';

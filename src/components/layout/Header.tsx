@@ -6,6 +6,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   keywords: { title: 'Recherche de Mots-Clés', subtitle: 'Analyse du volume et de la concurrence KDP' },
   niche: { title: 'Analyse de Niche', subtitle: 'Top concurrents pour votre mot-clé' },
   history: { title: 'Historique & Favoris', subtitle: 'Vos recherches sauvegardées' },
+  trends: { title: 'Niches Tendances', subtitle: 'Niches KDP à fort potentiel sélectionnées manuellement' },
 };
 
 export default function Header() {

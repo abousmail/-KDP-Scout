@@ -1,4 +1,4 @@
-import { Search, BarChart3, BookMarked, Telescope } from 'lucide-react';
+import { Search, BarChart3, BookMarked, Telescope, Zap } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { Page } from '../../types';
 
@@ -6,6 +6,7 @@ const NAV_ITEMS: Array<{ page: Page; label: string; icon: typeof Search; descrip
   { page: 'keywords', label: 'Mots-Clés', icon: Search, description: 'Recherche & KPIs' },
   { page: 'niche', label: 'Analyse de Niche', icon: BarChart3, description: 'Top concurrents' },
   { page: 'history', label: 'Historique', icon: BookMarked, description: 'Favoris & historique' },
+  { page: 'trends', label: 'Niches Tendances', icon: Zap, description: 'Niches rentables' },
 ];
 
 export default function Sidebar() {
