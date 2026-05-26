@@ -9,7 +9,7 @@ const NAV_ITEMS: Array<{ page: Page; label: string; icon: typeof Search; descrip
 ];
 
 export default function Sidebar() {
-  const { page, setPage } = useStore();
+  const { page, setPage, dataSource } = useStore();
 
   return (
     <aside className="w-64 shrink-0 bg-slate-900 border-r border-slate-800/60 flex flex-col h-screen">
@@ -60,12 +60,26 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Footer — source indicator */}
       <div className="px-5 py-4 border-t border-slate-800/60">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-slate-500 text-xs">Mode démo — données simulées</span>
-        </div>
+        {dataSource === 'amazon' && (
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-emerald-400/80 text-xs">Amazon réel</span>
+          </div>
+        )}
+        {dataSource === 'google' && (
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <span className="text-blue-400/80 text-xs">Google Suggest</span>
+          </div>
+        )}
+        {dataSource === 'mock' && (
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-slate-500" />
+            <span className="text-slate-500 text-xs">Mode démo — données simulées</span>
+          </div>
+        )}
       </div>
     </aside>
   );
