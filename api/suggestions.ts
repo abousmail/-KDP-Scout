@@ -1,7 +1,6 @@
-// Node.js serverless runtime (default) — logs visible in Vercel Functions tab,
-// outgoing requests tracked under External APIs.
-// Do NOT add `export const config = { runtime: 'edge' }` here — Edge Functions
-// hide their logs and external calls from the standard Vercel dashboard.
+// Vercel Node.js Serverless Function — standard (req, res) handler.
+// Do NOT use `export const config = { runtime: 'edge' }` here: Edge Runtime
+// uses Web Request/Response; Node.js serverless uses IncomingMessage/ServerResponse.
 
 type MarketCfg = { baseUrl: string; lop: string; lang: string; hl: string; host: string };
 
@@ -12,6 +11,14 @@ const MARKET_CONFIG: Record<string, MarketCfg> = {
 };
 
 interface Suggestion { value: string }
+
+// Minimal inline types — avoids requiring @types/node or @vercel/node
+type Req = { method?: string; url?: string };
+type Res = {
+  setHeader(name: string, value: string): void;
+  statusCode: number;
+  end(body?: string): void;
+};
 
 // ─── Amazon autocomplete ──────────────────────────────────────────────────────
 
@@ -55,7 +62,6 @@ async function tryAmazon(keyword: string, cfg: MarketCfg): Promise<Suggestion[]>
       const body = await resp.text().catch(() => '(unreadable)');
       console.error(`[Amazon] ❌ HTTP ${resp.status} ${resp.statusText} for "${keyword}"`);
       console.error(`[Amazon] Response body: ${body.slice(0, 500)}`);
-      console.error(`[Amazon] Response headers: ${JSON.stringify(Object.fromEntries(resp.headers))}`);
       return [];
     }
 
@@ -71,7 +77,6 @@ async function tryAmazon(keyword: string, cfg: MarketCfg): Promise<Suggestion[]>
 }
 
 // ─── Google Suggest fallback ──────────────────────────────────────────────────
-// Returns JSON: ["query", ["sug1","sug2",...], [...], {...}]
 
 async function tryGoogle(keyword: string, hl: string): Promise<Suggestion[]> {
   const params = new URLSearchParams({ client: 'firefox', q: keyword, hl });
@@ -112,55 +117,47 @@ async function tryGoogle(keyword: string, hl: string): Promise<Suggestion[]> {
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
-export default async function handler(request: Request): Promise<Response> {
-  // ← This log must appear on EVERY invocation. If it is absent from Vercel
-  //   Function logs, the request never reached this file (routing or cache issue).
-  console.log('[suggestions] INVOKED', request.method, request.url);
+export default async function handler(req: Req, res: Res): Promise<void> {
+  console.log('[suggestions] INVOKED', req.method, req.url);
 
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store');
+
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 200;
+    res.end();
+    return;
   }
 
-  const { searchParams } = new URL(request.url);
+  // Parse query string — req.url is just the path+query (e.g. "/api/suggestions?keyword=...")
+  const { searchParams } = new URL(req.url ?? '/', 'http://localhost');
   const keyword = searchParams.get('keyword')?.trim();
   const market  = searchParams.get('market') ?? 'amazon.com';
 
   if (!keyword) {
     console.warn('[suggestions] Missing keyword param → 400');
-    return json({ error: 'keyword is required' }, 400);
+    res.statusCode = 400;
+    res.end(JSON.stringify({ error: 'keyword is required' }));
+    return;
   }
 
   const cfg = MARKET_CONFIG[market] ?? MARKET_CONFIG['amazon.com'];
   console.log(`[suggestions] keyword="${keyword}" market=${market}`);
 
-  // 1st try: Amazon
   let suggestions = await tryAmazon(keyword, cfg);
   let source: 'amazon' | 'google' = 'amazon';
 
-  // 2nd try: Google if Amazon returned nothing
   if (suggestions.length === 0) {
-    console.log(`[suggestions] Amazon returned 0 → trying Google fallback`);
+    console.log('[suggestions] Amazon returned 0 → trying Google fallback');
     suggestions = await tryGoogle(keyword, cfg.hl);
     source = 'google';
   }
 
   console.log(`[suggestions] Final: source=${source} count=${suggestions.length}`);
 
-  // no-store: never cache — an empty response must not be served from CDN cache
-  return json({ suggestions, source }, 200, {
-    'Cache-Control': 'no-store',
-  });
-}
-
-function json(body: unknown, status: number, extra: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', ...extra },
-  });
+  res.statusCode = 200;
+  res.end(JSON.stringify({ suggestions, source }));
 }
