@@ -1,4 +1,7 @@
-export const config = { runtime: 'edge' };
+// Node.js serverless runtime (default) — logs visible in Vercel Functions tab,
+// outgoing requests tracked under External APIs.
+// Do NOT add `export const config = { runtime: 'edge' }` here — Edge Functions
+// hide their logs and external calls from the standard Vercel dashboard.
 
 type MarketCfg = { baseUrl: string; lop: string; lang: string; hl: string; host: string };
 
@@ -110,6 +113,10 @@ async function tryGoogle(keyword: string, hl: string): Promise<Suggestion[]> {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(request: Request): Promise<Response> {
+  // ← This log must appear on EVERY invocation. If it is absent from Vercel
+  //   Function logs, the request never reached this file (routing or cache issue).
+  console.log('[suggestions] INVOKED', request.method, request.url);
+
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -124,10 +131,13 @@ export default async function handler(request: Request): Promise<Response> {
   const keyword = searchParams.get('keyword')?.trim();
   const market  = searchParams.get('market') ?? 'amazon.com';
 
-  if (!keyword) return json({ error: 'keyword is required' }, 400);
+  if (!keyword) {
+    console.warn('[suggestions] Missing keyword param → 400');
+    return json({ error: 'keyword is required' }, 400);
+  }
 
   const cfg = MARKET_CONFIG[market] ?? MARKET_CONFIG['amazon.com'];
-  console.log(`\n[suggestions] keyword="${keyword}" market=${market}`);
+  console.log(`[suggestions] keyword="${keyword}" market=${market}`);
 
   // 1st try: Amazon
   let suggestions = await tryAmazon(keyword, cfg);
@@ -142,8 +152,9 @@ export default async function handler(request: Request): Promise<Response> {
 
   console.log(`[suggestions] Final: source=${source} count=${suggestions.length}`);
 
+  // no-store: never cache — an empty response must not be served from CDN cache
   return json({ suggestions, source }, 200, {
-    'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=600',
+    'Cache-Control': 'no-store',
   });
 }
 
