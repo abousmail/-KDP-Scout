@@ -1,4 +1,4 @@
-import { Star, TrendingUp } from 'lucide-react';
+import { Star, TrendingUp, Wifi, WifiOff } from 'lucide-react';
 import { KeywordResult } from '../../types';
 import {
   getScoreBadgeClasses,
@@ -46,17 +46,29 @@ export function KeywordTableSkeleton() {
 }
 
 export default function KeywordTable({ keywords }: Props) {
-  const { toggleFavorite, market } = useStore();
+  const { toggleFavorite, market, isUsingRealData } = useStore();
 
   return (
     <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden animate-slide-up">
-      <div className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-indigo-400" />
           <h3 className="text-sm font-semibold text-slate-200">Mots-clés associés</h3>
           <span className="px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 text-xs">
             {keywords.length}
           </span>
+          {/* Data source indicator */}
+          {isUsingRealData ? (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-400/10 border border-emerald-400/20 text-emerald-400 text-xs font-medium">
+              <Wifi className="w-3 h-3" />
+              Amazon réel
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-700/60 border border-slate-600/40 text-slate-500 text-xs">
+              <WifiOff className="w-3 h-3" />
+              Simulé
+            </span>
+          )}
         </div>
         <p className="text-slate-600 text-xs">
           Cliquez sur ★ pour mettre en favoris

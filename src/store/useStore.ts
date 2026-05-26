@@ -5,6 +5,7 @@ import {
   HistoryItem, FavoriteItem, HistoryTab, AuthUser,
 } from '../types';
 import { generateSearchData, generateCompetitorBooks } from '../lib/mockData';
+import { fetchAmazonSuggestions, buildKeywordsFromSuggestions } from '../lib/amazonApi';
 import { supabase } from '../lib/supabase';
 
 interface AppStore {
@@ -18,6 +19,7 @@ interface AppStore {
   market: Market;
   setMarket: (m: Market) => void;
   isSearching: boolean;
+  isUsingRealData: boolean;   // true when Amazon API provided real suggestions
   searchData: SearchData | null;
   competitors: CompetitorBook[];
 
@@ -28,7 +30,7 @@ interface AppStore {
   favorites: FavoriteItem[];
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  search: (keyword: string) => void;
+  search: (keyword: string) => Promise<void>;
   toggleFavorite: (item: { keyword: string; volumeScore: number; competition: number; opportunityScore: string }) => void;
   removeFromHistory: (id: string) => void;
   clearHistory: () => void;
@@ -56,6 +58,7 @@ export const useStore = create<AppStore>()(
       market: 'amazon.fr',
       setMarket: (market) => set({ market }),
       isSearching: false,
+      isUsingRealData: false,
       searchData: null,
       competitors: [],
 
@@ -65,24 +68,47 @@ export const useStore = create<AppStore>()(
       history: [],
       favorites: [],
 
-      // ── Actions ────────────────────────────────────────────────────────────
-      search: (keyword) => {
+      // ── Search action ──────────────────────────────────────────────────────
+      search: async (keyword) => {
         if (!keyword.trim()) return;
-        set({ isSearching: true, searchQuery: keyword });
+        set({ isSearching: true, searchQuery: keyword, isUsingRealData: false });
 
-        setTimeout(() => {
+        const start = Date.now();
+
+        try {
           const { market, favorites } = get();
-          const data = generateSearchData(keyword, market);
-          const books = generateCompetitorBooks(keyword, market);
+
+          // ① Try real Amazon autocomplete; silently fall back on any failure
+          let realSuggestions: string[] = [];
+          let gotRealData = false;
+          try {
+            realSuggestions = await fetchAmazonSuggestions(keyword, market);
+            gotRealData = realSuggestions.length > 0;
+          } catch {
+            // Local dev without vercel dev, Amazon blocked, network error — use mock
+          }
+
+          // ② Generate base KPI data (volume score, competition, opportunity grade)
+          //    These remain estimated regardless of the data source.
+          const baseData = generateSearchData(keyword, market);
+          const books    = generateCompetitorBooks(keyword, market);
+
           const favoriteKeywords = new Set(favorites.map(f => f.keyword));
 
-          const dataWithFavs: SearchData = {
-            ...data,
-            relatedKeywords: data.relatedKeywords.map(kw => ({
-              ...kw,
-              isFavorite: favoriteKeywords.has(kw.keyword),
-            })),
-          };
+          // ③ Build related keywords: real suggestions OR mock fallback
+          const relatedKeywords = (
+            gotRealData
+              ? buildKeywordsFromSuggestions(realSuggestions, baseData.competition)
+              : baseData.relatedKeywords
+          ).map(kw => ({ ...kw, isFavorite: favoriteKeywords.has(kw.keyword) }));
+
+          const data: SearchData = { ...baseData, relatedKeywords };
+
+          // ④ Enforce minimum skeleton duration so the UI doesn't flash
+          const elapsed = Date.now() - start;
+          if (elapsed < 700) {
+            await new Promise(r => setTimeout(r, 700 - elapsed));
+          }
 
           const historyItem: HistoryItem = {
             id: Date.now().toString(),
@@ -94,11 +120,15 @@ export const useStore = create<AppStore>()(
 
           set(state => ({
             isSearching: false,
-            searchData: dataWithFavs,
+            isUsingRealData: gotRealData,
+            searchData: data,
             competitors: books,
             history: [historyItem, ...state.history.filter(h => h.keyword !== keyword)].slice(0, 50),
           }));
-        }, 1_300);
+        } catch (err) {
+          console.error('[KDP Scout] Search failed:', err);
+          set({ isSearching: false });
+        }
       },
 
       toggleFavorite: (item) => {
@@ -109,15 +139,17 @@ export const useStore = create<AppStore>()(
         if (exists >= 0) {
           newFavorites = favorites.filter((_, i) => i !== exists);
         } else {
-          const fav: FavoriteItem = {
-            keyword: item.keyword,
-            market,
-            volumeScore: item.volumeScore,
-            competition: item.competition,
-            opportunityScore: item.opportunityScore as FavoriteItem['opportunityScore'],
-            savedAt: new Date(),
-          };
-          newFavorites = [fav, ...favorites];
+          newFavorites = [
+            {
+              keyword: item.keyword,
+              market,
+              volumeScore: item.volumeScore,
+              competition: item.competition,
+              opportunityScore: item.opportunityScore as FavoriteItem['opportunityScore'],
+              savedAt: new Date(),
+            },
+            ...favorites,
+          ];
         }
 
         const favoriteKeywords = new Set(newFavorites.map(f => f.keyword));
@@ -150,11 +182,7 @@ export const useStore = create<AppStore>()(
         if (error) throw error;
         if (data.user) {
           set({
-            user: {
-              id: data.user.id,
-              email: data.user.email!,
-              name: data.user.email!.split('@')[0],
-            },
+            user: { id: data.user.id, email: data.user.email!, name: data.user.email!.split('@')[0] },
             isAuthModalOpen: false,
           });
         }
@@ -166,7 +194,6 @@ export const useStore = create<AppStore>()(
         if (data.user && !data.user.identities?.length) {
           throw new Error('Un compte existe déjà avec cet email.');
         }
-        // If email confirmation is disabled in Supabase, user is immediately active
         if (data.session?.user) {
           set({
             user: {
