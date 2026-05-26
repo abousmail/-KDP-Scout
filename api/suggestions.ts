@@ -102,11 +102,11 @@ export default async function handler(request: Request): Promise<Response> {
 
   const { searchParams } = new URL(request.url);
   const keyword = searchParams.get('keyword')?.trim();
-  const market  = searchParams.get('market') ?? 'amazon.fr';
+  const market  = searchParams.get('market') ?? 'amazon.com';
 
   if (!keyword) return json({ error: 'keyword is required' }, 400);
 
-  const cfg = MARKET_CONFIG[market] ?? MARKET_CONFIG['amazon.fr'];
+  const cfg = MARKET_CONFIG[market] ?? MARKET_CONFIG['amazon.com'];
 
   // 1st try: Amazon
   let suggestions = await tryAmazon(keyword, cfg);

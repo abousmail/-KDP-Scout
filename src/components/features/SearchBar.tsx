@@ -4,8 +4,8 @@ import { useStore } from '../../store/useStore';
 import { Market } from '../../types';
 
 const MARKETS: Array<{ value: Market; label: string; flag: string }> = [
-  { value: 'amazon.fr', label: 'Amazon.fr', flag: '🇫🇷' },
   { value: 'amazon.com', label: 'Amazon.com', flag: '🇺🇸' },
+  { value: 'amazon.fr', label: 'Amazon.fr', flag: '🇫🇷' },
   { value: 'amazon.co.uk', label: 'Amazon.co.uk', flag: '🇬🇧' },
 ];
 

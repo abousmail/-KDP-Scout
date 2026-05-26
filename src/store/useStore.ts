@@ -55,7 +55,7 @@ export const useStore = create<AppStore>()(
       // ── Search ─────────────────────────────────────────────────────────────
       searchQuery: '',
       setSearchQuery: (searchQuery) => set({ searchQuery }),
-      market: 'amazon.fr',
+      market: 'amazon.com',
       setMarket: (market) => set({ market }),
       isSearching: false,
       dataSource: 'mock' as DataSource,
